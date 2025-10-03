@@ -1,0 +1,120 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyMd0YU/T6dyZn9Ldrz55NFy",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/LluviaRodriguez/Fundamentos-de-Programaci-n/blob/main/Programa%202\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "weZIJfSMNo81"
+      },
+      "outputs": [],
+      "source": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "ITSLP Fundamentos de programación Programa que encuentra entre 2 numeros diferentes el mayor"
+      ],
+      "metadata": {
+        "id": "wSVHNa5ROCl0"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "YR_osPp0OD3k",
+        "outputId": "fd825990-909a-44e4-d84e-57e465a173f1"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "ingrese el valor de Num1:3\n",
+            "ingrese el valor de Num2 :5\n",
+            "el numero mayor es: 5\n"
+          ]
+        }
+      ],
+      "source": [
+        "Num1 = 0\n",
+        "Num2 = 0\n",
+        "Num1 = input(\"ingrese el valor de Num1:\")\n",
+        "Num2 = input(\"ingrese el valor de Num2 :\")\n",
+        "if Num1 > Num2:\n",
+        "    print(\"el numero mayor es:\",Num1)\n",
+        "else:\n",
+        "   print(\"el numero mayor es:\",Num2)"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "Num1 = input(\"ingrese el valor de Num1:\")\n",
+        "Num2 = input(\"ingrese el valor de Num2:\")\n",
+        "if Num1 > Num2:\n",
+        " m=Num1\n",
+        "else:\n",
+        " m=Num2\n",
+        "print(\"el numero mayor es:\",m)\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "7bKK9udNQe8R",
+        "outputId": "7ce3da8e-a83d-49b9-c712-3e89909889ef"
+      },
+      "execution_count": 4,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "ingrese el valor de Num1:5\n",
+            "ingrese el valor de Num2:3\n",
+            "el numero mayor es: 5\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "TnLLToFyRs9S"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
