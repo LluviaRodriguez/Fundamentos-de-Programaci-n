@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Galaxia de Esencias</title>
+<style>
+body { margin: 0; overflow: hidden; background: #010105; }
+canvas { display: block; }
+
+/* Estilos para las cartas */
+.carta-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.carta-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.carta-contenedor {
+  width: 500px;
+  max-width: 90%;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 40px 30px;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 40px rgba(255, 100, 255, 0.1) inset;
+  transform: translateY(30px) scale(0.95);
+  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+}
+
+.carta-overlay.active .carta-contenedor {
+  transform: translateY(0) scale(1);
+}
+
+/* Efecto de brillo sutil en bordes */
+.carta-contenedor::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.3), 
+    transparent);
+}
+
+.carta-contenedor::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+}
+
+.carta-texto {
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 18px;
+  line-height: 1.8;
+  text-align: center;
+  letter-spacing: 0.5px;
+  font-weight: 400;
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.carta-firma {
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Brush Script MT', cursive;
+  font-size: 24px;
+  text-align: center;
+  margin-top: 30px;
+  font-style: italic;
+  letter-spacing: 1px;
+}
+
+.btn-cerrar {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1001;
+}
+
+.btn-cerrar:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+/* Indicador visual para los planetas clickeables */
+.click-indicator {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-family: Arial, sans-serif;
+}
+</style>
+</head>
+<body>
+
+<!-- Overlay para cartas -->
+<div id="cartaOverlay" class="carta-overlay">
+  <button class="btn-cerrar" onclick="cerrarCarta()">×</button>
+  <div class="carta-contenedor">
+    <p class="carta-texto" id="cartaTexto"></p>
+    <p class="carta-firma" id="cartaFirma"></p>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.159.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.159.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+/* ---------------- ESCENA BASE ---------------- */
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 1, 8000);
+camera.position.set(0, 0, 1600);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(
+  new UnrealBloomPass(
+    new THREE.Vector2(innerWidth, innerHeight),
+    1.6, 0.2, 0.8
+  )
+);
+
+/* ---------------- TEXTURA PLANETARIA ---------------- */
+
+function createMagicTexture(c1, c2, c3, nebula) {
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 512;
+  const ctx = c.getContext('2d');
+
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, c1);
+  g.addColorStop(0.5, c2);
+  g.addColorStop(1, c3);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * 1024;
+    const y = Math.random() * 512;
+    const r = 200 + Math.random() * 300;
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
+    rg.addColorStop(0, nebula);
+    rg.addColorStop(1, 'transparent');
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return new THREE.CanvasTexture(c);
+}
+
+/* ---------------- CARTAS AMOROSAS PARA CADA PLANETA ---------------- */
+
+const cartasPlanetas = [
+  {
+    titulo: "Podemos Brillar",
+    texto: "Contigo descubrí que el brillo más verdadero no está en las estrellas, sino en el espacio que hay entre tu mano y la mía. En ese silencio cómplice donde todo es posible.  En ese pequeño universo que creamos, aprendí que dos almas pueden brillar con una sola luz. Mi fe ya no busca en el cielo; la encuentra aquí, en el eco de tu nombre en mi pecho. Pero encuentra su reflejo más puro en el brillo de tu mirada, donde todo lo bueno del mundo parece centellear solo para mí.",
+    firma: "Tu eterna TomatiCompañera"
+  },
+  {
+    titulo: "Podemos Soñar",
+    texto: "Nuestros sueños ya no caminan solos. Dejaron de ser dos para encontrarse y juntarse en uno solo. De esa unión nació un mundo nuevo: un planeta pequeño y perfecto que gira solo para nosotros. Cada deseo, por alto que parezca, deja de ser una sombra. Porque cuando pienso en ti, el mundo se llena de posibilidades. Y así comprendo la verdad más hermosa: juntos no solo soñamos. Nos damos el permiso de volar, y hasta las estrellas se apartan para cedernos el cielo. Por eso, cuando cierro los ojos y estás tú, no estoy soñando. Estoy en casa. He encontrado la galaxia entera, reducida a la medida exacta de nuestro corazón compartido.",
+    firma: `Porque contigo, el universo no es el límite...
+Es nuestro destino.`
+  },
+  {
+    titulo: "Podemos Crecer",
+    texto: "Nuestro amor crece hacia dentro, como una galaxia que se reconoce. A tu lado, el tiempo encuentra su sentido y cada día suma una presencia profunda y viva. Crecimos de forma natural: cuando tu nombre se volvió sinónimo de calma, cuando mis miedos aprendieron a confiar en tu quietud, y cuando lo cotidiano se tornó extraordinario en su simpleza. En esos pequeños instantes, el tiempo nos concede la eternidad. Se expande como el universo: sin prisa, pero sin pausa. Suave y brillante. No temo al futuro porque nuestro amor tiene la paciencia de las estrellas. Crecer a tu lado es entender que el espacio entre dos almas no es un vacío, sino un hogar sereno y vasto en el corazón del cosmos. Te amo en expansión constante, como nuestra galaxia de dos.",
+    firma: "Un nosotros que habita el cielo."
+  },
+  {
+    titulo: "Prometo Amarte, Siempre ",
+    texto: "Te prometo caminar contigo como se mueven las estrellas: con constancia, con paciencia y con luz. Prometo cuidarnos incluso cuando el cielo se nuble, y elegirte en cada órbita, en cada regreso, en cada comienzo. Te prometo ser hogar cuando el universo pese, y aventura cuando el alma quiera volar. Aprender tus silencios, celebrar tus alegrías y sostener tu mano mientras seguimos descubriendo quiénes somos juntos. Prometo amarte con un amor que no se apaga, que se transforma, que se expande. Un amor que no necesita certezas absolutas, porque confía. Porque sabe. Porque siente. Y así, bajo este cielo infinito, prometo seguir construyendo contigo nuestra propia galaxia, donde el “para siempre” es un presente que elegimos.",
+    firma: "Tu TomatiEsposa. Creyente oficial de los destinos felices"
+  },
+  {
+    titulo: "Somos",
+    texto: "Ya no somos un “podemos”. Somos. Duraznito y Tomatito, el encuentro que las estrellas esperaban desde hace mucho. Somos risas compartidas bajo el mismo cielo. Silencios que se entienden sin palabras. El impulso de avanzar y la certeza de pertenecer. Somos la calma en medio de la galaxia. Ese punto donde todo encaja y todo respira en equilibrio. Y en este ahora que construimos juntos, existe una verdad sencilla: cuando estamos uno con el otro, el universo se siente completo. ",
+    firma: "~Somos"
+  }
+];
+
+/* ---------------- FUNCIONES PARA MOSTRAR CARTAS ---------------- */
+
+function mostrarCarta(index) {
+  const carta = cartasPlanetas[index];
+  const overlay = document.getElementById('cartaOverlay');
+  const texto = document.getElementById('cartaTexto');
+  const firma = document.getElementById('cartaFirma');
+  
+  // Agregar título sutil
+  texto.innerHTML = `<span style="display:block; margin-bottom:20px; font-size:14px; letter-spacing:3px; color:rgba(255,255,255,0.6);">${carta.titulo}</span>${carta.texto}`;
+  firma.textContent = carta.firma;
+  
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarCarta() {
+  const overlay = document.getElementById('cartaOverlay');
+  overlay.classList.remove('active');
+  document.body.style.overflow = 'auto';
+}
+
+// Cerrar carta con ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cerrarCarta();
+});
+
+// Cerrar al hacer clic fuera de la carta
+document.getElementById('cartaOverlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) cerrarCarta();
+});
+
+/* ---------------- PLANETAS CON CLICK INVISIBLE ---------------- */
+
+const planets = [];
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// Esferas invisibles para detección de clics (ligeramente más grandes que los planetas)
+const clickSpheres = [];
+
+function createPlanet(x, y, z, radius, colors, emissive, glow, heartsColor, planetIndex) {
+  const group = new THREE.Group();
+  group.position.set(x, y, z);
+  scene.add(group);
+
+  const tex = createMagicTexture(...colors);
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 128, 128),
+    new THREE.MeshStandardMaterial({
+      map: tex,
+      emissive,
+      emissiveIntensity: 0.3,
+      roughness: 0.5,
+      metalness: 0.3
+    })
+  );
+  group.add(sphere);
+
+  // Crear esfera invisible para clics (15% más grande que el planeta)
+  const clickSphereGeometry = new THREE.SphereGeometry(radius * 1.15, 32, 32);
+  const clickSphereMaterial = new THREE.MeshBasicMaterial({
+    visible: false, // Invisible
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.0
+  });
+  
+  const clickSphere = new THREE.Mesh(clickSphereGeometry, clickSphereMaterial);
+  clickSphere.position.set(x, y, z);
+  clickSphere.userData = { planetIndex: planetIndex, type: 'planet' };
+  scene.add(clickSphere);
+  clickSpheres.push(clickSphere);
+
+  const atmosMat = new THREE.ShaderMaterial({
+    transparent: true,
+    side: THREE.BackSide,
+    uniforms: {
+      glowColor: { value: new THREE.Color(glow) },
+      intensity: { value: 1 }
+    },
+    vertexShader: `
+      varying vec3 v;
+      void main(){
+        v = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 glowColor;
+      uniform float intensity;
+      varying vec3 v;
+      void main(){
+        float i = pow(0.7 - dot(v, vec3(0,0,1)), 4.) * intensity;
+        gl_FragColor = vec4(glowColor, i);
+      }
+    `
+  });
+
+  const atmos = new THREE.Mesh(
+    new THREE.SphereGeometry(radius * 1.1, 64, 64),
+    atmosMat
+  );
+  group.add(atmos);
+
+  const glitterGeo = new THREE.BufferGeometry();
+  const pts = [];
+  for (let i = 0; i < 4000; i++) {
+    const u = Math.random() * Math.PI * 2;
+    const v = Math.acos(2 * Math.random() - 1);
+    const r = radius + 1;
+    pts.push(
+      r * Math.sin(v) * Math.cos(u),
+      r * Math.sin(v) * Math.sin(u),
+      r * Math.cos(v)
+    );
+  }
+  glitterGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  const glitterMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: radius * 0.012,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending
+  });
+  group.add(new THREE.Points(glitterGeo, glitterMat));
+
+  const heartsGroup = new THREE.Group();
+  group.add(heartsGroup);
+
+  const heartShape = new THREE.Shape();
+  heartShape.moveTo(0, 0);
+  heartShape.bezierCurveTo(0, -3, -5, -3, -5, 2);
+  heartShape.bezierCurveTo(-5, 7, 0, 12, 0, 15);
+  heartShape.bezierCurveTo(0, 12, 5, 7, 5, 2);
+  heartShape.bezierCurveTo(5, -3, 0, -3, 0, 0);
+
+  for (let i = 0; i < 18; i++) {
+    const h = new THREE.Mesh(
+      new THREE.TubeGeometry(
+        new THREE.CatmullRomCurve3(
+          heartShape.getPoints(20).map(p => new THREE.Vector3(p.x, p.y, 0))
+        ),
+        20, 0.8, 8, true
+      ),
+      new THREE.MeshBasicMaterial({ color: heartsColor })
+    );
+    const a = (i / 18) * Math.PI * 2;
+    h.position.set(Math.cos(a) * radius * 1.6, 0, Math.sin(a) * radius * 1.6);
+    h.scale.set(radius * 0.015, -radius * 0.015, radius * 0.015);
+    heartsGroup.add(h);
+  }
+
+  planets.push({ group, glitterMat, heartsGroup, atmosMat, baseY: y, planetIndex });
+}
+
+// Crear planetas con índices
+createPlanet(-600, 450, -400, 320, ['#2b004d','#8a004f','#ff0077','rgba(255,100,200,.3)'], 0xff0066, 0xff00ff, 0xff00ff, 0);
+createPlanet(700, 300, -200, 150, ['#000033','#000080','#1e90ff','rgba(50,100,255,.3)'], 0x0000ff, 0x4169e1, 0x00bfff, 1);
+createPlanet(550, -400, -100, 120, ['#111','#444','#fff','rgba(200,220,255,.3)'], 0xcccccc, 0xffffff, 0xffffff, 2);
+createPlanet(-100, -150, 100, 60, ['#1a0033','#330066','#6600ff','rgba(150,100,255,.3)'], 0x4400ff, 0x9900ff, 0x6600ff, 3);
+createPlanet(-700, -500, 50, 45, ['#002222','#004444','#00ffff','rgba(0,255,200,.3)'], 0x00ffaa, 0x00ffff, 0x00ffaa, 4);
+
+/* ---------------- DETECCIÓN DE CLIC EN PLANETAS ---------------- */
+
+// Variable para rastrear el planeta actualmente "hovereado"
+let hoveredPlanet = null;
+const hoverIndicator = document.createElement('div');
+hoverIndicator.className = 'click-indicator';
+document.body.appendChild(hoverIndicator);
+
+function onMouseMove(event) {
+  // Calcular posición normalizada del mouse
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Buscar intersecciones con las esferas invisibles
+  const intersects = raycaster.intersectObjects(clickSpheres);
+  
+  if (intersects.length > 0) {
+    const planetIndex = intersects[0].object.userData.planetIndex;
+    
+    if (hoveredPlanet !== planetIndex) {
+      hoveredPlanet = planetIndex;
+      
+      // Posicionar indicador visual
+      const vector = intersects[0].point;
+      vector.project(camera);
+      
+      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+      const y = -(vector.y * 0.5 - 0.5) * window.innerHeight;
+      
+      hoverIndicator.style.left = (x - 25) + 'px';
+      hoverIndicator.style.top = (y - 25) + 'px';
+      hoverIndicator.style.opacity = '1';
+      hoverIndicator.textContent = '❤️';
+      
+      // Cambiar cursor
+      document.body.style.cursor = 'pointer';
+    }
+  } else {
+    if (hoveredPlanet !== null) {
+      hoveredPlanet = null;
+      hoverIndicator.style.opacity = '0';
+      document.body.style.cursor = 'default';
+    }
+  }
+}
+
+function onMouseClick(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(clickSpheres);
+  
+  if (intersects.length > 0) {
+    const planetIndex = intersects[0].object.userData.planetIndex;
+    
+    // Efecto visual momentáneo en el planeta
+    const planet = planets[planetIndex];
+    planet.atmosMat.uniforms.intensity.value = 2.5;
+    planet.glitterMat.opacity = 1;
+    
+    // Mostrar carta después de un breve retraso
+    setTimeout(() => {
+      mostrarCarta(planetIndex);
+    }, 200);
+    
+    // Restaurar valores después de un tiempo
+    setTimeout(() => {
+      planet.atmosMat.uniforms.intensity.value = 0.8;
+      planet.glitterMat.opacity = 0.8;
+    }, 800);
+  }
+}
+
+window.addEventListener('mousemove', onMouseMove, false);
+window.addEventListener('click', onMouseClick, false);
+
+/* ---------------- ESTRELLAS ---------------- */
+
+const starsGeo = new THREE.BufferGeometry();
+const stars = [];
+for (let i = 0; i < 12000; i++) {
+  stars.push(
+    (Math.random() - 0.5) * 8000,
+    (Math.random() - 0.5) * 8000,
+    (Math.random() - 0.5) * 8000
+  );
+}
+starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(stars, 3));
+const starsPoints = new THREE.Points(
+  starsGeo,
+  new THREE.PointsMaterial({ color: 0xffffff, size: 1 })
+);
+scene.add(starsPoints);
+
+/* ---------------- LUCES ---------------- */
+
+scene.add(new THREE.AmbientLight(0x404040));
+const light = new THREE.PointLight(0xffffff, 4, 4000);
+light.position.set(0, 500, 1000);
+scene.add(light);
+
+/* ---------------- FRASES / SUSURROS ---------------- */
+
+const FRASES = [
+  "Te Amo","DURAZNITO","TOMATITO","🤍","MI POLOLOKI","Tú y yo","Siempre juntos",
+  "Eres mi universo","Mi amor","Mi vida","Hasta el final","Eres mi destino",
+  "Te elijo","ESPECIAL","Brillas","Siempre aquí","Mi hogar","Te siento","Te Amo", "DURAZNITO", "TOMATITO", "🤍", "🤍", "MI POLOLOKI", "Tú y yo",
+
+"Siempre juntos", "Eres mi universo", "Mi amor", "Mi vida", "🤍", "🤍", "🤍",
+
+"Hasta el final", "Eres mi destino", "Te elijo", "INCREIBLE", "MARAVILLOSO",
+
+"TE ELIJO", "TE TOMATIAMO", "ESPECIAL", "Eres Lindo", "🤍", "🤍", "🤍",
+
+"Brillas TU", "I Only Want You", "I.Love.You", "You Are My Future",
+
+"You Are Perfect", "My Love", "My Life", "My Everything", "🤍", "🤍", "🤍",
+
+"You and Me", "Always", "My Soul Mate", "My Favorite Person",
+
+"You Are My Home", "🤍", "🤍", "🤍", "Me enorgulleces", "Te Quiero",
+
+"Eres importante", "Mi Regalo", "Mi presente", "Eres UNICO", "Te Elijo",
+
+"ERES LO MEJOR", "Perfecto", "Ojitos Lindos", "Sonrisa Bonita",
+
+"Eres precioso", "Duraznimaravilloso", "Eres mi estrella fugaz",
+"Un deseo que se hizo realidad","Contigo", "Hasta el último destello de la última estrella","Eres mi Universo",
+"Amor Infinito", 
+
+];
+
+const susurros = [];
+let nextWhisper = 0;
+
+function crearSusurro() {
+  const text = FRASES[Math.floor(Math.random() * FRASES.length)];
+
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 256;
+
+  const ctx = c.getContext('2d');
+  ctx.font = '500 56px Georgia';
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, c.width / 2, c.height / 2);
+
+  const tex = new THREE.CanvasTexture(c);
+
+  const mat = new THREE.SpriteMaterial({
+    map: tex,
+    transparent: true,
+    opacity: 0,
+    depthTest: false
+  });
+
+  const s = new THREE.Sprite(mat);
+  s.position.set(
+    (Math.random() - 0.5) * 1400,
+    (Math.random() - 0.5) * 900,
+    -900 - Math.random() * 400
+  );
+
+  const scale = 420;
+  s.scale.set(scale, scale / 4, 1);
+
+  scene.add(s);
+
+  susurros.push({
+    s,
+    birth: Date.now(),
+    life: 14000,
+    speed: 0.25
+  });
+}
+
+/* ---------------- ANIMACIÓN ---------------- */
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = Date.now();
+  const t = now * 0.0006;
+
+  if (now > nextWhisper) {
+    crearSusurro();
+    nextWhisper = now + 2500 + Math.random() * 4000;
+  }
+
+  for (let i = susurros.length - 1; i >= 0; i--) {
+    const f = susurros[i];
+    const age = now - f.birth;
+    const p = age / f.life;
+
+    f.s.position.z += f.speed;
+    f.s.position.y += Math.sin(t + i) * 0.15;
+
+    if (p < 0.2) {
+      f.s.material.opacity = p * 5;
+    } else if (p > 0.8) {
+      f.s.material.opacity = (1 - p) * 5;
+    } else {
+      f.s.material.opacity = 0.9;
+    }
+
+    if (age > f.life || f.s.position.z > 600) {
+      scene.remove(f.s);
+      susurros.splice(i, 1);
+    }
+  }
+
+  planets.forEach((p, i) => {
+    p.group.rotation.y += 0.002;
+    p.heartsGroup.rotation.y += 0.004;
+    p.group.position.y = p.baseY + Math.sin(t + i) * 4;
+    p.glitterMat.opacity = 0.4 + Math.abs(Math.sin(t * 1.5 + i)) * 0.5;
+    p.atmosMat.uniforms.intensity.value = 0.8 + Math.sin(t + i) * 0.3;
+  });
+
+  // Rotar también las esferas invisibles
+  clickSpheres.forEach((sphere, i) => {
+    sphere.rotation.y += 0.002;
+  });
+
+  starsPoints.rotation.y += 0.00015;
+  starsPoints.rotation.x += 0.00007;
+
+  composer.render();
+}
+
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
